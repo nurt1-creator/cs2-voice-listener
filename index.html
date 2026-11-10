@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CS2 Voice Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#17181b; --surface:#212226; --surface2:#2a2b30; --edge:#0f1012;
+  --text:#ececee; --muted:#9a9ba3; --accent:#a9b8ff; --accent-ink:#17181b; --accent-edge:#6f7fd0;
+  --err:#ff8f8f; --star:#c9d3ff;
+  --hand:'Caveat','Comic Sans MS',cursive; --round:'Nunito','Segoe UI',system-ui,sans-serif;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f1f1ef; --surface:#fbfbfa; --surface2:#e7e7e4; --edge:#c9c9c4;
+  --text:#25262a; --muted:#6c6d75; --accent:#7f90f0; --accent-ink:#fff; --accent-edge:#5568d0;
+  --err:#d64545; --star:#8c9bf0; color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--round);
+  padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);
+  transition:background .4s,color .4s;
+}
+#stars{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column;padding:14px 16px 12px;max-width:1040px;margin:0 auto;gap:12px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--hand);font-size:clamp(30px,6vw,44px);margin:0;line-height:1;font-weight:700}
+.sub{margin:2px 0 0;color:var(--muted);font-size:14px;font-weight:600}
+button{font-family:inherit;color:inherit;cursor:pointer;border:0}
+.btn{
+  background:var(--surface2);border-radius:999px;padding:11px 20px;font-weight:800;font-size:15px;
+  box-shadow:0 4px 0 var(--edge);transition:transform .15s cubic-bezier(.3,1.6,.5,1),box-shadow .15s,background .25s;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--edge)}
+.btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 4px 0 var(--accent-edge)}
+.btn.primary:hover{box-shadow:0 6px 0 var(--accent-edge)}
+.btn.primary:active{box-shadow:0 0 0 var(--accent-edge)}
+.btn:disabled{opacity:.45;pointer-events:none}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+#theme{width:48px;height:48px;padding:0;display:grid;place-items:center;font-size:22px}
+#theme span{display:block;transition:transform .5s cubic-bezier(.3,1.5,.5,1)}
+:root[data-theme="light"] #theme span{transform:rotate(360deg)}
+main{flex:1;min-height:0;display:grid;gap:14px;grid-template-columns:1fr}
+.card{background:var(--surface);border-radius:28px;padding:16px;box-shadow:0 5px 0 var(--edge);transition:background .4s}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}
+.slot{
+  aspect-ratio:1;border-radius:50%;background:var(--surface2);font-weight:800;font-size:clamp(13px,3.6vw,18px);
+  box-shadow:0 3px 0 var(--edge);transition:transform .18s cubic-bezier(.3,1.7,.5,1),box-shadow .15s,background .25s,color .25s;
+  font-variant-numeric:tabular-nums;
+}
+.slot:hover{transform:translateY(-2px) scale(1.06)}
+.slot:active{transform:translateY(3px) scale(.94);box-shadow:0 0 0 var(--edge)}
+.slot.on{background:var(--accent);color:var(--accent-ink);box-shadow:0 3px 0 var(--accent-edge),0 0 16px color-mix(in srgb,var(--accent) 55%,transparent)}
+.slot.on:active{box-shadow:0 0 0 var(--accent-edge)}
+.side{display:flex;flex-direction:column;gap:12px}
+label{font-weight:800;font-size:15px;display:block;margin-bottom:8px}
+input{
+  width:100%;font:inherit;font-weight:700;font-size:17px;color:var(--text);background:var(--surface2);
+  border:2px solid transparent;border-radius:999px;padding:12px 18px;transition:border-color .2s,box-shadow .2s;
+}
+input::placeholder{color:var(--muted);font-weight:600}
+input:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+.err{min-height:20px;margin:6px 4px 0;color:var(--err);font-size:14px;font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.count{display:flex;align-items:baseline;gap:8px}
+.count b{font-size:44px;font-weight:900;line-height:1;transition:transform .25s cubic-bezier(.3,1.8,.5,1)}
+.count b.pop{transform:scale(1.25)}
+.count span{color:var(--muted);font-weight:700}
+.cmd{
+  background:var(--surface2);border-radius:20px;padding:14px 16px;font-weight:700;font-size:15px;line-height:1.5;
+  word-break:break-all;min-height:56px;color:var(--text);
+}
+.cmd.empty{color:var(--muted)}
+[hidden]{display:none!important}
+.srow{display:flex;align-items:center;gap:16px;width:100%;margin-bottom:14px}
+.sval{min-width:44px;height:44px;border-radius:50%;background:var(--surface2);box-shadow:0 3px 0 var(--edge);display:grid;place-items:center;font-size:22px;font-weight:900;transition:transform .2s cubic-bezier(.3,1.8,.5,1)}
+.sval.pop{transform:scale(1.2)}
+#cnts{-webkit-appearance:none;appearance:none;flex:1;height:14px;padding:0;border:0;border-radius:999px;cursor:pointer;background:linear-gradient(to right,var(--accent) var(--p,0%),var(--surface2) var(--p,0%));box-shadow:inset 0 2px 0 var(--edge)}
+#cnts:focus{box-shadow:inset 0 2px 0 var(--edge)}
+#cnts::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;border-radius:50%;background:var(--accent);border:0;box-shadow:0 4px 0 var(--accent-edge);transition:transform .15s cubic-bezier(.3,1.7,.5,1)}
+#cnts:active::-webkit-slider-thumb{transform:translateY(3px) scale(1.1);box-shadow:0 1px 0 var(--accent-edge)}
+#cnts::-moz-range-thumb{width:32px;height:32px;border-radius:50%;background:var(--accent);border:0;box-shadow:0 4px 0 var(--accent-edge)}
+#cnts::-moz-range-track{background:transparent}
+:root{--ih:44px}
+.gridcard{display:flex;flex-direction:column}
+.stage{flex:1;display:grid;place-items:center;min-height:0;width:100%}
+.side .card{flex:1;display:flex;flex-direction:column;justify-content:center}
+.seg{display:flex;gap:6px;background:var(--surface2);padding:5px;border-radius:999px;margin:0 auto 14px;width:max-content;max-width:100%}
+.seg button{background:transparent;border-radius:999px;padding:9px 20px;font-weight:800;font-size:14px;transition:background .25s,transform .15s cubic-bezier(.3,1.6,.5,1),color .25s}
+.seg button:active{transform:scale(.94)}
+.seg button.on{background:var(--accent);color:var(--accent-ink);box-shadow:0 3px 0 var(--accent-edge)}
+.seg button:disabled{opacity:.4;pointer-events:none}
+.wheels{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%}
+.wheel,.ph{height:calc(var(--ih)*3);border-radius:24px}
+.wheel{flex:0 0 calc((100% - 40px)/5)}
+.wheel{position:relative;background:var(--surface2);box-shadow:0 4px 0 var(--edge);overflow:hidden}
+.scroll{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;padding:var(--ih) 0;scrollbar-width:none;overscroll-behavior:contain;cursor:grab;-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.scroll::-webkit-scrollbar{display:none}
+.it{height:var(--ih);display:grid;place-items:center;scroll-snap-align:center;font-weight:900;font-size:22px;color:var(--muted);opacity:.6;transition:transform .2s,color .2s,opacity .2s;font-variant-numeric:tabular-nums}
+.it.cur{color:var(--text);opacity:1;transform:scale(1.3)}
+.band{position:absolute;left:6px;right:6px;top:var(--ih);height:var(--ih);border-radius:16px;border:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);pointer-events:none}
+.rm{position:absolute;top:4px;right:4px;z-index:2;width:24px;height:24px;padding:0;border-radius:50%;background:var(--surface);font-size:14px;font-weight:900;line-height:1;transition:transform .15s cubic-bezier(.3,1.7,.5,1)}
+.rm:hover{transform:scale(1.15)}.rm:active{transform:scale(.85)}
+.ph{background:transparent;border:2px dashed color-mix(in srgb,var(--muted) 50%);font-size:34px;font-weight:700;color:var(--muted);transition:transform .18s cubic-bezier(.3,1.7,.5,1),background .2s}
+.ph:hover{background:var(--surface2);transform:scale(1.03)}.ph:active{transform:scale(.94)}
+footer{text-align:center;color:var(--muted);font-weight:700;font-size:14px;padding:2px 0}
+footer b{font-family:var(--hand);font-size:22px;color:var(--text);font-weight:700}
+@media(min-width:860px){
+  html,body{overflow:hidden}
+  .app{height:100dvh;min-height:0;padding:20px 24px 14px}
+  main{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}
+  :root{--ih:56px}
+  .grid{width:min(100%,calc(100dvh - 300px));gap:9px}
+  .side{gap:14px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars" aria-hidden="true"></canvas>
+<div class="app">
+  <header>
+    <div>
+      <h1>CS2 Voice Calculator</h1>
+      <p class="sub">Выбери игроков, чтобы слышать их в демке</p>
+    </div>
+    <button id="theme" class="btn" aria-label="Переключить тему"><span>🌙</span></button>
+  </header>
+
+  <main>
+    <section class="card gridcard" aria-label="Слоты игроков">
+      <div class="seg">
+        <button id="mWheel" class="on">Колёса</button>
+        <button id="mGrid">Кнопки</button>
+      </div>
+      <div class="srow" id="srow">
+        <input type="range" id="cnts" min="1" max="10" step="1" value="1" aria-label="Количество игроков">
+        <div class="sval" id="sval">1</div>
+      </div>
+      <div class="stage">
+        <div class="wheels" id="wheels"></div>
+        <div class="grid" id="grid" hidden></div>
+      </div>
+    </section>
+
+    <section class="side">
+      <div class="card">
+        <label for="inp">Номера слотов</label>
+        <input id="inp" type="text" inputmode="numeric" autocomplete="off" placeholder="Например: 1, 4, 7, 36">
+        <div class="err" id="err" role="alert"></div>
+        <div class="row">
+          <button class="btn" id="clear">Очистить</button>
+          <button class="btn" id="all">Выбрать всех</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="count"><b id="cnt">0</b><span>игроков выбрано</span></div>
+        <label style="margin-top:14px">Команда для консоли CS2</label>
+        <div class="cmd empty" id="cmd">Выбери хотя бы один слот</div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="copy" disabled>Скопировать команду</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Автор сайта: <b id="author"></b></footer>
+</div>
+
+<script>
+const AUTHOR = 'nurt1-creator (https://github.com/nurt1-creator).';
+document.getElementById('author').textContent = AUTHOR;
+
+const $ = id => document.getElementById(id);
+const grid = $('grid'), inp = $('inp'), err = $('err'), cmd = $('cmd'),
+      cnt = $('cnt'), copyBtn = $('copy');
+const sel = new Set();
+let mode = 'wheel', dials = [1];
+const wheelsEl = $('wheels'), mWheel = $('mWheel'), mGrid = $('mGrid');
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch(e){} };
+
+// Сетка слотов 1–64
+for (let i = 1; i <= 64; i++) {
+  const b = document.createElement('button');
+  b.className = 'slot'; b.textContent = i; b.dataset.n = i;
+  b.setAttribute('aria-pressed', 'false');
+  grid.appendChild(b);
+}
+const slotEls = [...grid.children];
+
+// Расчёт масок (как в Python: 32-битные знаковые числа)
+function masks() {
+  let low = 0, high = 0;
+  for (const s of sel) {
+    if (s <= 32) low |= 1 << (s - 1);
+    else high |= 1 << (s - 33);
+  }
+  return [low | 0, high | 0];
+}
+
+function render(fromInput) {
+  if (mode === 'wheel') { sel.clear(); dials.forEach(d => sel.add(d)); }
+  mWheel.disabled = sel.size > 10;
+  slotEls.forEach(el => {
+    const on = sel.has(+el.dataset.n);
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', on);
+  });
+  if (!fromInput) inp.value = [...sel].sort((a, b) => a - b).join(', ');
+  const old = cnt.textContent;
+  cnt.textContent = sel.size;
+  if (old != sel.size) { cnt.classList.add('pop'); setTimeout(() => cnt.classList.remove('pop'), 180); }
+  if (sel.size) {
+    const [l, h] = masks();
+    cmd.textContent = `tv_listen_voice_indices ${l}; tv_listen_voice_indices_h ${h}`;
+    cmd.classList.remove('empty');
+  } else {
+    cmd.textContent = 'Выбери хотя бы один слот';
+    cmd.classList.add('empty');
+  }
+  copyBtn.disabled = !sel.size;
+}
+
+grid.addEventListener('click', e => {
+  const b = e.target.closest('.slot'); if (!b) return;
+  const n = +b.dataset.n;
+  sel.has(n) ? sel.delete(n) : sel.add(n);
+  err.textContent = ''; buzz(8); render(false);
+});
+
+inp.addEventListener('input', () => {
+  const tokens = inp.value.split(/[\s,.;]+/).filter(Boolean);
+  const next = new Set();
+  for (const t of tokens) {
+    if (!/^\d+$/.test(t)) { err.textContent = 'Вводи только целые числа.'; return; }
+    const n = parseInt(t, 10);
+    if (n < 1 || n > 64) { err.textContent = `Слот ${n} вне диапазона 1–64.`; return; }
+    next.add(n);
+  }
+  err.textContent = '';
+  if (mode === 'wheel') {
+    if (next.size > 10) { sel.clear(); next.forEach(n => sel.add(n)); mode = 'grid'; applyMode(); }
+    else { dials = [...next].sort((a, b) => a - b); buildWheels(); }
+  } else { sel.clear(); next.forEach(n => sel.add(n)); }
+  render(true);
+});
+
+$('clear').onclick = () => {
+  if (mode === 'wheel') { dials = []; buildWheels(); } else sel.clear();
+  err.textContent = ''; buzz(12); render(false);
+};
+$('all').onclick = () => {
+  for (let i = 1; i <= 64; i++) sel.add(i);
+  mode = 'grid'; applyMode(); err.textContent = ''; buzz(12); render(false);
+};
+
+copyBtn.onclick = async () => {
+  const text = cmd.textContent;
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const t = document.createElement('textarea'); t.value = text;
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    t.remove();
+  }
+  buzz([10, 40, 10]);
+  copyBtn.textContent = 'Скопировано ✓';
+  setTimeout(() => copyBtn.textContent = 'Скопировать команду', 1500);
+};
+
+// Тема
+const root = document.documentElement, themeBtn = $('theme');
+function setTheme(t) {
+  root.dataset.theme = t;
+  themeBtn.firstElementChild.textContent = t === 'dark' ? '🌙' : '☀️';
+}
+let saved = null;
+try { saved = localStorage.getItem('cs2vc-theme'); } catch (e) {}
+setTheme(saved === 'light' ? 'light' : 'dark');
+themeBtn.onclick = () => {
+  const t = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  setTheme(t); buzz(10);
+  try { localStorage.setItem('cs2vc-theme', t); } catch (e) {}
+};
+
+// Падающие звёзды (четырёхконечные, со скруглёнными вогнутыми гранями)
+const cv = $('stars'), ctx = cv.getContext('2d');
+let W, H, stars = [];
+function resize() {
+  const d = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * d; cv.height = H * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+function mk(initial) {
+  return {
+    x: Math.random() * W, y: initial ? Math.random() * H : -30,
+    r: 6 + Math.random() * 12, vy: 0.25 + Math.random() * 0.6,
+    sway: Math.random() * Math.PI * 2, rot: (Math.random() - .5) * .5,
+    a: 0.15 + Math.random() * 0.3, ph: Math.random() * 6
+  };
+}
+function drawStar(s, t) {
+  const r = s.r, k = r * 0.14;
+  ctx.save();
+  ctx.translate(s.x + Math.sin(t / 1500 + s.sway) * 14, s.y);
+  ctx.rotate(Math.sin(t / 2000 + s.ph) * s.rot);
+  ctx.globalAlpha = s.a * (0.7 + 0.3 * Math.sin(t / 700 + s.ph));
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.quadraticCurveTo(k, -k, r, 0);
+  ctx.quadraticCurveTo(k, k, 0, r);
+  ctx.quadraticCurveTo(-k, k, -r, 0);
+  ctx.quadraticCurveTo(-k, -k, 0, -r);
+  ctx.fill();
+  ctx.restore();
+}
+function loop(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = getComputedStyle(root).getPropertyValue('--star').trim() || '#c9d3ff';
+  stars.forEach((s, i) => {
+    s.y += s.vy;
+    if (s.y > H + 30) stars[i] = mk(false);
+    drawStar(s, t);
+  });
+  requestAnimationFrame(loop);
+}
+resize(); addEventListener('resize', resize);
+const count = Math.round(Math.min(34, Math.max(16, innerWidth / 40)));
+for (let i = 0; i < count; i++) stars.push(mk(true));
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  ctx.fillStyle = '#c9d3ff'; stars.forEach(s => drawStar(s, 0));
+} else requestAnimationFrame(loop);
+
+// Колёса выбора (до 8 игроков)
+function applyMode() {
+  wheelsEl.hidden = mode !== 'wheel'; grid.hidden = mode !== 'grid'; $('srow').hidden = mode !== 'wheel';
+  mWheel.classList.toggle('on', mode === 'wheel');
+  mGrid.classList.toggle('on', mode === 'grid');
+  if (mode === 'wheel') buildWheels();
+}
+mWheel.onclick = () => {
+  if (mode === 'wheel' || sel.size > 10) return;
+  dials = [...sel].sort((a, b) => a - b); mode = 'wheel';
+  applyMode(); render(false); buzz(10);
+};
+mGrid.onclick = () => {
+  if (mode === 'grid') return;
+  sel.clear(); dials.forEach(d => sel.add(d)); mode = 'grid';
+  applyMode(); render(false); buzz(10);
+};
+const cnts = $('cnts'), sval = $('sval');
+function syncSlider() {
+  const v = Math.max(1, dials.length);
+  cnts.value = v;
+  cnts.style.setProperty('--p', ((v - 1) / 9 * 100) + '%');
+  if (sval.textContent != dials.length) {
+    sval.textContent = dials.length;
+    sval.classList.add('pop'); setTimeout(() => sval.classList.remove('pop'), 180);
+  }
+}
+cnts.addEventListener('input', () => {
+  const n = +cnts.value;
+  if (n === dials.length) return;
+  while (dials.length < n) dials.push(nextFree());
+  while (dials.length > n) dials.pop();
+  err.textContent = ''; buzz(6);
+  buildWheels(); render(false);
+});
+function nextFree() { for (let n = 1; n <= 64; n++) if (!dials.includes(n)) return n; return 1; }
+function buildWheels() {
+  wheelsEl.innerHTML = ''; syncSlider();
+  for (let i = 0; i < dials.length; i++) wheelsEl.appendChild(makeWheel(i));
+}
+function makeWheel(i) {
+  const w = document.createElement('div'); w.className = 'wheel';
+  const sc = document.createElement('div'); sc.className = 'scroll'; sc.tabIndex = 0;
+  sc.setAttribute('aria-label', 'Слот игрока ' + (i + 1));
+  sc.innerHTML = Array.from({ length: 64 }, (_, k) => `<div class="it">${k + 1}</div>`).join('');
+  const band = document.createElement('i'); band.className = 'band';
+  const x = document.createElement('button'); x.className = 'rm'; x.textContent = '×';
+  x.setAttribute('aria-label', 'Убрать игрока');
+  x.onclick = () => { dials.splice(i, 1); buildWheels(); render(false); buzz(10); };
+  w.append(sc, band, x);
+  const ih = () => sc.firstChild.offsetHeight || 44;
+  let cur = -1;
+  const mark = v => { if (cur >= 0) sc.children[cur].classList.remove('cur'); cur = v - 1; sc.children[cur].classList.add('cur'); };
+  requestAnimationFrame(() => { sc.scrollTop = (dials[i] - 1) * ih(); mark(dials[i]); });
+  sc.addEventListener('scroll', () => {
+    const v = Math.min(64, Math.max(1, Math.round(sc.scrollTop / ih()) + 1));
+    if (v !== dials[i]) { dials[i] = v; mark(v); render(false); buzz(4); }
+  });
+  let drag = null;
+  sc.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse') return;
+    drag = { y: e.clientY, t: sc.scrollTop };
+    sc.style.scrollSnapType = 'none'; sc.style.cursor = 'grabbing'; sc.setPointerCapture(e.pointerId);
+  });
+  sc.addEventListener('pointermove', e => { if (drag) sc.scrollTop = drag.t - (e.clientY - drag.y); });
+  const end = () => {
+    if (!drag) return; drag = null;
+    sc.style.scrollSnapType = ''; sc.style.cursor = '';
+    sc.scrollTo({ top: (dials[i] - 1) * ih(), behavior: 'smooth' });
+  };
+  sc.addEventListener('pointerup', end); sc.addEventListener('pointercancel', end);
+  return w;
+}
+applyMode();
+
+render(false);
+</script>
+</body>
+</html>
